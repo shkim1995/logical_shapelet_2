@@ -17,6 +17,12 @@
 
 #endif
 
+
+#ifndef INFO
+#define INFO
+#include "Info.h"
+#endif
+
 using namespace std;
 
 
@@ -24,36 +30,31 @@ class Node{
 
 public:
 
-	vector<double> shapelet ;
-	double dist;
-	int left_type;
-	int right_type;
+	ShapeletInfo shapeletInfo;
+	int type; // type at the bottom node, -1 for parents
 
 	Node* left;
 	Node* right;
 
 	Node(){
-		left_type = -1;
-		right_type = -1;
 
+		type = -1;
 		left = NULL;
 		right = NULL;
 
-		dist = 0;
 	}
 
-	void print_nodes(){
-		cout<<dist<<endl;
+	void printNodes(){
+		if(type==-1)
+			cout<<shapeletInfo.best_t<<endl;
+		else
+			cout<<type<<endl;
 		//printVector(shapelet);
-		if(left==NULL)
-			cout<<"null"<<endl;
-		else
-			left->print_nodes();
+		if(left!=NULL)
+			left->printNodes();
 
-		if(right==NULL)
-			cout<<"null"<<endl;
-		else
-			right->print_nodes();
+		if(right!=NULL)
+			right->printNodes();
 	}
 
 private:
@@ -65,18 +66,3 @@ private:
 	}
 
 };
-
-// class Tree{
-
-// public:
-
-// 	Node root;
-
-// 	Tree(){
-// 		root.value = 0;
-// 		root.left_type = 1;
-// 		root.left = null;
-// 		root.right = null;
-// 	}
-
-// };

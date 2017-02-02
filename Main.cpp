@@ -534,8 +534,17 @@ double upperIG(Histogram* hist, double R){
 	return max_gain;
 }
 
+bool isDataPure(vector<Data>* dataVector){
+	if(dataVector->size()==0)
+		return true;
+	int type = (*dataVector)[0].type;
+	for(int i=0; i<dataVector->size(); i++)
+		if((*dataVector)[i].type!=type)
+			return false;
+	return true;
+}
 
-void Shapelet_Discovery(vector<Data>* dataVector){
+void Shapelet_Discovery(vector<Data>* dataVector, Node* node){
  	
 	Stats stats(dataVector);
  
@@ -546,6 +555,10 @@ void Shapelet_Discovery(vector<Data>* dataVector){
 	double max_gain = 0;
 	double max_gap = 0;
  	
+ 	int best_k;
+ 	int best_l;
+ 	int best_i;
+
 	int len;
 
 	//for each data
@@ -566,6 +579,9 @@ void Shapelet_Discovery(vector<Data>* dataVector){
 					hist.insert((*dataVector)[t].type, distance);
 				}
 				if(BestIG_new(&hist, &(Shapelet.best_t), &max_gain, &max_gap)){
+					best_k = k;
+					best_i = i;
+					best_l = l;
 					// hist.print();
 					// cout<<i<<" "<<j<<" :  gain = "<<max_gain<<", gap = "<<max_gap<<endl;
 				}
@@ -573,9 +589,48 @@ void Shapelet_Discovery(vector<Data>* dataVector){
 		}
 		cout<<"Round "<<(k<10?"0":"")<<k<<" : t = "<<(Shapelet.best_t)<<", gain = "<<max_gain<<", gap = "<<max_gap<<endl;
 	}
+
+	for(int i=0; i<best_l; i++){
+		Shapelet.best_S.push_back(((*dataVector)[best_k]).data[i+best_i]);
+	}
+	node->shapeletInfo = Shapelet;
+	// cout<<best_k<<" "<<best_i<<" "<<best_l<<endl;
+	// printVector(node->shapeletInfo.best_S);
+
+	//FOR Recursion
+	vector <Data> dataVector_left;
+	vector <Data> dataVector_right;
+	for(int k=0; k<dataVector->size(); k++){
+
+		double distance = sdist(&(node->shapeletInfo.best_S), &((*dataVector)[k].data));
+		if(distance<node->shapeletInfo.best_t){
+			dataVector_left.push_back((*dataVector)[k]);
+		}
+		else{
+			dataVector_right.push_back((*dataVector)[k]);
+		}
+	}
+
+	if(isDataPure(&dataVector_left)==false){
+		node->left = new Node();
+		Shapelet_Discovery(&dataVector_left, node->left);
+	}
+	else{
+		node->left = new Node();
+		node->left->type = dataVector_left[0].type;
+	}
+
+	if(isDataPure(&dataVector_right)==false){
+		node->right = new Node();
+		Shapelet_Discovery(&dataVector_right, node->right);
+	}
+	else{
+		node->right = new Node();
+		node->right->type = dataVector_right[0].type;
+	}
 }
 
-void Fast_Shapelet_Discovery(vector<Data>* dataVector){
+void Fast_Shapelet_Discovery(vector<Data>* dataVector, Node* node){
  	
 	Stats stats(dataVector);
  
@@ -583,7 +638,10 @@ void Fast_Shapelet_Discovery(vector<Data>* dataVector){
  
 	double max_gain = 0;
 	double max_gap = 0;
- 	
+ 	int best_k;
+ 	int best_l;
+ 	int best_i;
+
 	vector<double> candidate;
 	PruningCandidate pCandidate;
 
@@ -630,22 +688,105 @@ void Fast_Shapelet_Discovery(vector<Data>* dataVector){
 					hist.insert((*dataVector)[t].type, distance);
 				}
 				if(BestIG_new(&hist, &(Shapelet.best_t), &max_gain, &max_gap)){
-					
-
+					best_k = k;
+					best_i = i;
+					best_l = l;
 				}
 				pCandidate.insert(&hist, k, i, l);
 			}
 		}
 		cout<<"Round "<<(k<10?"0":"")<<k<<" : t = "<<(Shapelet.best_t)<<", gain = "<<max_gain<<", gap = "<<max_gap<<endl;
+
+	}
+
+	for(int i=0; i<best_l; i++){
+		Shapelet.best_S.push_back(((*dataVector)[best_k]).data[i+best_i]);
+	}
+	node->shapeletInfo = Shapelet;
+	// cout<<best_k<<" "<<best_i<<" "<<best_l<<endl;
+	// printVector(node->shapeletInfo.best_S);
+
+	//FOR Recursion
+	vector <Data> dataVector_left;
+	vector <Data> dataVector_right;
+	for(int k=0; k<dataVector->size(); k++){
+
+		double distance = sdist(&(node->shapeletInfo.best_S), &((*dataVector)[k].data));
+		if(distance<node->shapeletInfo.best_t){
+			dataVector_left.push_back((*dataVector)[k]);
+		}
+		else{
+			dataVector_right.push_back((*dataVector)[k]);
+		}
+	}
+
+	if(isDataPure(&dataVector_left)==false){
+		node->left = new Node();
+		Fast_Shapelet_Discovery(&dataVector_left, node->left);
+	}
+	else{
+		node->left = new Node();
+		node->left->type = dataVector_left[0].type;
+	}
+
+	if(isDataPure(&dataVector_right)==false){
+		node->right = new Node();
+		Fast_Shapelet_Discovery(&dataVector_right, node->right);
+	}
+	else{
+		node->right = new Node();
+		node->right->type = dataVector_right[0].type;
 	}
 }
  
  
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+int setType(Data* data, Node* node){
+	if(node->type!=-1){
+		return node->type;
+	}
+	double distance = sdist(&(node->shapeletInfo.best_S), &(data->data));
+
+	if(distance<node->shapeletInfo.best_t){
+		return setType(data, node->left);
+	}
+	else{
+		return setType(data, node->right);
+	}
+		
+}
+
+void setTypes(vector<Data>* dataVector, Node* node){
+	for(int i=0; i<dataVector->size(); i++){
+		Data d = (*dataVector)[i];
+		(*dataVector)[i].type2 = setType(&d, node);
+		//cout<<setType(&d, node)<<endl;
+	}
+}
+
+double GetAccuracy(vector <Data>* dataVector2){
+	int total = 0;
+	int correct = 0;
+	for(int k=0; k<dataVector2->size(); k++){
+		total++;
+		//cout<<k<<" : "<<(*dataVector2)[k].type<<" "<<(*dataVector2)[k].type2<<endl;
+		if((*dataVector2)[k].type==(*dataVector2)[k].type2)
+			correct++;
+	}
+	return correct*100.0/total;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 int main(){
 	clock_t before;
  
 	before = clock();
- 
+ 	
+	Node root;
+
 	vector <Data> dataVector;
  	ifstream inFile;
 	inFile.open("gun_train_2", ios::in);
@@ -706,12 +847,41 @@ int main(){
 
  // 	typeCount2.print();
 
-	Fast_Shapelet_Discovery(&dataVector);
- 
+	Fast_Shapelet_Discovery(&dataVector, &root);
+ 	
+ 	root.printNodes();
 
  	//GET TIME
 	double result = (double)(clock()-before)/CLOCKS_PER_SEC;
 	cout<<"Time = "<<result<<endl;
+
+	/////////TESTING//////////
+	
+	vector <Data> dataVector2;	
+
+	ifstream inFile2;
+	inFile2.open("gun_test", ios::in);
+	string s2;
+
+	while(getline(inFile2, s2)){
+		stringstream ss(s2);
+		double test;
+		int t;
+		Data temp;
+
+		ss>>t;
+		temp.type = t;
+
+		while(ss>>test){
+			temp.data.push_back(test);
+		}
+		dataVector2.push_back(temp);
+	}
+
+	setTypes(&dataVector2, &root);
+
+	cout<<"The Accuracy of this Algorithm is : "<<GetAccuracy(&dataVector2)<<"%"<<endl;
+
 
 	//////////////////////upperIG TESTING////////////////////////////
 
